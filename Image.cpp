@@ -151,7 +151,7 @@ void Image::computeResponseFunction(const Image & r) {
                 double v = usePixels[pos];
                 double nv = rUsePixels[pos];
                 if (v >= nv && v < satThreshold) {
-                    numerator += v * nv;
+                    numerator += v * r.response(nv);;
                     denom += v * v;
                 }
             }
