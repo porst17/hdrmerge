@@ -161,6 +161,13 @@ void Image::computeResponseFunction(const Image & r) {
 }
 
 
+double Image::clippedExposureAt(size_t x, size_t y, const RawParameters & params) const {
+    uint16_t channelSat = satThreshold / params.whiteMultAt(x, y);
+    uint16_t v = (*this)(x, y);
+    return response(v > channelSat ? channelSat : v);
+}
+
+
 size_t Image::alignWith(const Image & r) {
     dx = dy = 0;
     const double tolerance = 1.0/16;

@@ -53,6 +53,7 @@ public:
     double exposureAt(size_t x, size_t y) const {
         return response((*this)(x, y));
     }
+    double clippedExposureAt(size_t x, size_t y, const RawParameters & params) const;
     uint16_t getMaxAround(size_t x, size_t y) const;
     bool isSaturated(uint16_t v) const {
         return v >= satThreshold;

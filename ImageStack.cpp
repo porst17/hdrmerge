@@ -263,12 +263,11 @@ Array2D<float> ImageStack::compose(const RawParameters & params, int featherRadi
                 int j = floor(map(x, y));
                 double v = 0.0, vv = 0.0, p;
                 if (images[j].contains(x, y)) {
-                    v = images[j].exposureAt(x, y);
                     uint16_t rawV = images[j].getMaxAround(x, y);
-                    // Adjust false highlights
-                    if (j < imageMax && images[j].isSaturated(rawV)) {
-                        v /= params.whiteMultAt(x, y);
-                    }
+                    if (j < imageMax && images[j].isSaturated(rawV))
+                        v = images[j].clippedExposureAt(x, y, params);
+                    else
+                        v = images[j].exposureAt(x, y);
                     p = map(x, y) - j;
                     // Adjust alinearities, mixing saturated highlights with next exposure
                     if (p > 0.0001 && j < imageMax && rawV > satThreshold) {
@@ -280,10 +279,10 @@ Array2D<float> ImageStack::compose(const RawParameters & params, int featherRadi
                     p = 1.0;
                 }
                 if (p > 0.0001 && j < imageMax && images[j + 1].contains(x, y)) {
-                    vv = images[j + 1].exposureAt(x, y);
-                    if (j < imageMax - 1 && images[j + 1].isSaturatedAround(x, y)) {
-                        vv /= params.whiteMultAt(x, y);
-                    }
+                    if (j < imageMax - 1 && images[j + 1].isSaturatedAround(x, y))
+                        vv = images[j + 1].clippedExposureAt(x, y, params);
+                    else
+                        vv = images[j + 1].exposureAt(x, y);
                 } else {
                     p = 0.0;
                 }
