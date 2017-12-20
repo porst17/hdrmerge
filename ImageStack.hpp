@@ -48,6 +48,11 @@ public:
     void crop();
     void computeResponseFunctions();
     void generateMask();
+    void generateMaskByExposure();
+    void generateMaskBySorting( std::function<size_t ( const std::vector< size_t > & )> selector );
+    void generateMaskByMedian();
+    void generateMaskforDarkness();
+    void generateMaskforBrightness();
     Array2D<float> compose(const RawParameters & md, int featherRadius) const;
 
     size_t size() const { return images.size(); }

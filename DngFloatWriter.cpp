@@ -509,7 +509,7 @@ void DngFloatWriter::writeRawData() {
                     encodeFPDeltaRow(src, dst, thisTileWidth, tileWidth, bytesps, 2);
                 }
                 uLongf conpressedLength = dstLen;
-                int err = compress(cBuffer, &conpressedLength, uBuffer, dstLen);
+                int err = compress2(cBuffer, &conpressedLength, uBuffer, dstLen, 9);
                 tileBytes[t] = conpressedLength;
                 if (err != Z_OK) {
                     std::cerr << "DNG Deflate: Failed compressing tile " << t << ", with error " << err << std::endl;

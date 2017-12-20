@@ -21,6 +21,7 @@
  */
 
 #include <algorithm>
+#include <map>
 #include "ImageStack.hpp"
 #include "Log.hpp"
 #include "BoxBlur.hpp"
@@ -125,9 +126,15 @@ void ImageStack::computeResponseFunctions() {
     }
 }
 
-
 void ImageStack::generateMask() {
-    Timer t("Generate mask");
+    //generateMaskforBrightness();
+    //generateMaskforDarkness();
+    generateMaskByMedian();    
+    //generateMaskByExposure();    
+}
+
+void ImageStack::generateMaskByExposure() {
+    Timer t("Generate mask based on exposure");
     mask.resize(width, height);
     if(images.size() == 1) {
         // single image, fill in zero values
@@ -150,6 +157,57 @@ void ImageStack::generateMask() {
     origMask = mask;
 }
 
+#include <iostream>
+void ImageStack::generateMaskBySorting( std::function<size_t ( const std::vector< size_t > & )> selector ) {
+    Timer t("Generate mask based on median");
+    mask.resize(width, height);
+    std::fill_n(&mask[0], width*height, 0);
+    #pragma omp parallel for schedule(dynamic)
+    for (size_t y = 0; y < height; ++y) {
+        for (size_t x = 0; x < width; ++x) {
+
+            std::vector< size_t > fiberIndices;
+
+            // put available layer indices into array
+            for (size_t i = 0; i < images.size(); ++i)
+                if (images[i].contains(x, y))
+                {
+                    fiberIndices.push_back( i );
+                //    std::cout << i << "->" << images[i](x,y) << ", "; 
+                }
+                //std::cout << "    ";
+
+            
+
+            // compute index of pixel data media by sorting and selection of central element
+            // (not particularly efficient, but easy to implement)
+            if( fiberIndices.size() > 0 ) 
+            {
+                std::sort( fiberIndices.begin(), fiberIndices.end(), [this,x,y](size_t a, size_t b){ return this->images[a](x,y) < this->images[b](x,y); });
+                mask(x, y) = selector( fiberIndices );
+                //for( auto &i : fiberIndices )
+                //    std::cout << i << "->" << images[i](x,y) << ", "; 
+            }
+            else
+            {
+                mask(x,y)=0;
+            }
+            //std::cout << std::endl;
+        }
+    }
+}
+
+void ImageStack::generateMaskByMedian() {
+    generateMaskBySorting( [] ( const std::vector< size_t > & array ) { return array[ array.size() / 2 ]; } );
+}
+
+void ImageStack::generateMaskforDarkness() {
+    generateMaskBySorting( [] ( const std::vector< size_t > & array ) { return array[ 0 ]; } );
+}
+
+void ImageStack::generateMaskforBrightness() {
+    generateMaskBySorting( [] ( const std::vector< size_t > & array ) { return array[ array.size() - 1 ]; } );
+}
 
 double ImageStack::value(size_t x, size_t y) const {
     const Image & img = images[mask(x, y)];
@@ -398,11 +456,18 @@ Array2D<float> ImageStack::compose(const RawParameters & params, int featherRadi
                     vv = 0.0;
                     p = 0.0;
                 }
+#ifdef MAINLINE
                 v -= p * (v - vv);
                 dst(x, y) = v;
+#else
+                v = v*(1.0 - p) + vv*p;
+                //dst(x, y) = v;
+                dst(x,y) = images[j](x,y);
+#endif
                 if (v > maxthr) {
                     maxthr = v;
                 }
+
             }
         }
         #pragma omp critical
@@ -412,6 +477,7 @@ Array2D<float> ImageStack::compose(const RawParameters & params, int featherRadi
     }
 
     dst.displace(params.leftMargin, params.topMargin);
+
     // Scale to params.max and recover the black levels
     float mult = (params.max - params.maxBlack) / max;
     #pragma omp parallel for
